@@ -60,7 +60,10 @@
 
   let adminPassword = getSavedAdmin();
   let managedSecrets = [];
-  const isAdmin = () => !!adminPassword;
+  // 管理模式是界面开关（收起后与普通访客视角一致），登录凭证保存在本机 7 天
+  let adminMode = false;
+  const isLoggedIn = () => !!adminPassword;
+  const isAdminMode = () => isLoggedIn() && adminMode;
 
   // ---------- 工具 ----------
 
@@ -169,7 +172,7 @@
       item.appendChild(avatar);
       item.appendChild(body);
 
-      if (isAdmin()) {
+      if (isAdminMode()) {
         const del = document.createElement('button');
         del.className = 'btn-delete';
         del.title = '删除这条留言';
@@ -223,9 +226,9 @@
   // ---------- 管理面板 ----------
 
   function updateAdminUi() {
-    adminPanel.classList.toggle('hidden', !isAdmin());
-    adminBtn.classList.toggle('active', isAdmin());
-    adminBtn.title = isAdmin() ? '退出管理' : '管理员登录';
+    adminPanel.classList.toggle('hidden', !isAdminMode());
+    adminBtn.classList.toggle('active', isAdminMode());
+    adminBtn.title = !isLoggedIn() ? '管理员登录' : (adminMode ? '收起管理面板' : '进入管理模式');
     updateCurlExample();
     // 重渲染列表以显隐删除按钮
     if (currentMessages.length) renderMessages(currentMessages);
@@ -341,6 +344,7 @@
       }
       adminPassword = password;
       saveAdminSession(password);
+      adminMode = true;
       closeModal();
       updateAdminUi();
       await loadSecrets();
@@ -355,6 +359,7 @@
 
   function doLogout() {
     adminPassword = '';
+    adminMode = false;
     managedSecrets = [];
     clearAdminSession();
     updateAdminUi();
@@ -365,12 +370,13 @@
   refreshBtn.addEventListener('click', () => loadMessages({ animateFirst: false }));
 
   adminBtn.addEventListener('click', () => {
-    if (isAdmin()) {
-      doLogout();
-      loadMessages();
-    } else {
+    if (!isLoggedIn()) {
       openModal();
+      return;
     }
+    // 已登录：盾牌只切换管理模式，登录凭证保持不变
+    adminMode = !adminMode;
+    updateAdminUi();
   });
 
   logoutBtn.addEventListener('click', () => {
