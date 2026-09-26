@@ -1,14 +1,11 @@
-// GET  /api/messages  获取留言列表（最新在前）
-// POST /api/messages  Webhook 发送留言
+// GET    /api/messages  获取留言列表（最新在前）
+// POST   /api/messages  Webhook 发送留言
+// DELETE /api/messages  清空全部留言（管理员）
 //
 // KV key 设计：msg:{倒序时间戳}:{uuid}
 // 倒序时间戳让 KV list 天然按"最新在前"排列。
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Webhook-Secret',
-};
+import { json, CORS_HEADERS, checkAdmin, rateLimited, verifyWebhookSecret } from './_lib.js';
 
 const MAX_NAME_LEN = 50;
 const MAX_MESSAGE_LEN = 2000;
@@ -16,36 +13,9 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
 const RATE_LIMIT_PER_MINUTE = 10;
 
-// 校验密钥：支持 ?secret= / X-Webhook-Secret 头 / Authorization: Bearer xxx
-function checkSecret(request, url, secret) {
-  if (!secret) return true; // 未配置密钥则不校验
-  const provided =
-    url.searchParams.get('secret') ||
-    request.headers.get('X-Webhook-Secret') ||
-    (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  return provided === secret;
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS },
-  });
-}
-
 function makeId() {
   const inverted = String(9999999999999 - Date.now()).padStart(13, '0');
   return `${inverted}:${crypto.randomUUID()}`;
-}
-
-// 简单限流：每个 IP 每分钟最多 RATE_LIMIT_PER_MINUTE 条
-async function rateLimited(env, ip) {
-  const minute = Math.floor(Date.now() / 60000);
-  const key = `rl:${ip}:${minute}`;
-  const count = parseInt((await env.MESSAGES_KV.get(key)) || '0', 10);
-  if (count >= RATE_LIMIT_PER_MINUTE) return true;
-  await env.MESSAGES_KV.put(key, String(count + 1), { expirationTtl: 120 });
-  return false;
 }
 
 export async function onRequestGet(context) {
@@ -74,12 +44,12 @@ export async function onRequestPost(context) {
   }
 
   const url = new URL(request.url);
-  if (!checkSecret(request, url, env.WEBHOOK_SECRET)) {
+  if (!(await verifyWebhookSecret(request, url, env))) {
     return json({ ok: false, error: '无效的密钥（secret）' }, 401);
   }
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  if (await rateLimited(env, ip)) {
+  if (await rateLimited(env, ip, 'rl', RATE_LIMIT_PER_MINUTE)) {
     return json({ ok: false, error: '发送太频繁，请稍后再试' }, 429);
   }
 
@@ -127,6 +97,29 @@ export async function onRequestPost(context) {
   await env.MESSAGES_KV.put(`msg:${id}`, JSON.stringify(record));
 
   return json({ ok: true, id: record.id, name: record.name, message: record.message, timestamp: record.timestamp }, 201);
+}
+
+// 清空全部留言（管理员）
+export async function onRequestDelete(context) {
+  const { env, request } = context;
+  const url = new URL(request.url);
+  const auth = checkAdmin(request, url, env);
+  if (!auth.ok) return json({ ok: false, error: auth.error }, auth.status);
+
+  if (!env.MESSAGES_KV) {
+    return json({ ok: false, error: 'KV 绑定 MESSAGES_KV 未配置' }, 500);
+  }
+
+  let deleted = 0;
+  let cursor;
+  do {
+    const list = await env.MESSAGES_KV.list({ prefix: 'msg:', cursor });
+    await Promise.all(list.keys.map((k) => env.MESSAGES_KV.delete(k.name)));
+    deleted += list.keys.length;
+    cursor = list.list_complete ? undefined : list.cursor;
+  } while (cursor);
+
+  return json({ ok: true, deleted });
 }
 
 export async function onRequestOptions() {

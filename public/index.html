@@ -16,16 +16,44 @@
       </div>
       <div class="header-actions">
         <span id="last-updated" class="last-updated"></span>
-        <button id="refresh-btn" class="btn-refresh" title="刷新留言" aria-label="刷新留言">
+        <button id="refresh-btn" class="btn-icon" title="刷新留言" aria-label="刷新留言">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12a9 9 0 1 1-2.64-6.36" />
             <polyline points="21 3 21 9 15 9" />
+          </svg>
+        </button>
+        <button id="admin-btn" class="btn-icon" title="管理员登录" aria-label="管理员登录">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
         </button>
       </div>
     </header>
 
     <section id="status" class="status hidden"></section>
+
+    <!-- 管理面板（管理员登录后显示） -->
+    <section id="admin-panel" class="admin-panel hidden">
+      <div class="admin-head">
+        <strong>🛠 管理面板</strong>
+        <button id="logout-btn" class="btn-small">退出管理</button>
+      </div>
+      <div class="admin-section">
+        <h4>Webhook 密钥</h4>
+        <p class="hint">调用方发送留言时携带密钥（<code>?secret=密钥</code> 或请求头 <code>X-Webhook-Secret</code>）。删除某把密钥即可立即吊销对应调用方；未配置任何密钥时任何人都能发送。</p>
+        <div id="secrets-list" class="secrets-list"></div>
+        <form id="secret-form" class="secret-form">
+          <input id="secret-name" type="text" placeholder="备注名（如：CI 机器人）" maxlength="50" />
+          <input id="secret-value" type="text" placeholder="密钥值（留空自动生成）" maxlength="128" autocomplete="off" />
+          <button type="submit" class="btn-primary">添加密钥</button>
+        </form>
+      </div>
+      <div class="admin-section danger-zone">
+        <h4>危险操作</h4>
+        <button id="clear-btn" class="btn-danger">清空全部留言</button>
+        <span class="hint">不可恢复，请谨慎操作</span>
+      </div>
+    </section>
 
     <section id="message-list" class="message-list" aria-live="polite">
       <div class="loading">正在加载留言…</div>
@@ -34,11 +62,9 @@
     <details class="usage">
       <summary>如何通过 Webhook 发送留言？</summary>
       <p>向本站的 <code>/api/messages</code> 发送 POST 请求即可，支持 JSON、表单和纯文本：</p>
-      <pre><code id="curl-example">curl -X POST https://你的域名.pages.dev/api/messages \
-  -H "Content-Type: application/json" \
-  -d '{"name": "小明", "message": "你好，世界！"}'</code></pre>
+      <pre><code id="curl-example"></code></pre>
       <p>字段兼容 <code>message</code> / <code>text</code> / <code>content</code> / <code>body</code>，署名兼容 <code>name</code> / <code>author</code> / <code>username</code>。</p>
-      <p>若服务端配置了 <code>WEBHOOK_SECRET</code>，请加上 <code>?secret=你的密钥</code> 或请求头 <code>X-Webhook-Secret</code>。</p>
+      <p id="secret-hint">若服务端配置了 <code>WEBHOOK_SECRET</code>，请加上 <code>?secret=你的密钥</code> 或请求头 <code>X-Webhook-Secret</code>。</p>
       <button id="copy-btn" class="btn-copy" data-copy>复制 curl 示例</button>
     </details>
 
@@ -46,6 +72,19 @@
       每 30 秒自动刷新 · Powered by Cloudflare Pages
     </footer>
   </main>
+
+  <!-- 管理员登录弹窗 -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <h3 id="modal-title">管理员登录</h3>
+      <input type="password" id="admin-password-input" placeholder="管理员密码（ADMIN_PASSWORD）" autocomplete="current-password" />
+      <p id="modal-error" class="modal-error hidden"></p>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn-small">取消</button>
+        <button id="modal-login" class="btn-primary">登录</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

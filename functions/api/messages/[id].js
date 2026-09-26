@@ -1,34 +1,11 @@
-// DELETE /api/messages/:id  删除留言（需要管理密钥）
-// 密钥来源：ADMIN_SECRET，未配置时回退到 WEBHOOK_SECRET；两者都未配置则拒绝删除。
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Webhook-Secret',
-};
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS },
-  });
-}
+// DELETE /api/messages/:id  删除单条留言（管理员）
+import { json, CORS_HEADERS, checkAdmin } from '../_lib.js';
 
 export async function onRequestDelete(context) {
   const { env, request, params } = context;
 
-  const secret = env.ADMIN_SECRET || env.WEBHOOK_SECRET;
-  if (!secret) {
-    return json({ ok: false, error: '未配置 ADMIN_SECRET / WEBHOOK_SECRET，删除功能已禁用' }, 403);
-  }
-
-  const url = new URL(request.url);
-  const provided =
-    url.searchParams.get('secret') ||
-    request.headers.get('X-Webhook-Secret') ||
-    (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  if (provided !== secret) {
-    return json({ ok: false, error: '无效的密钥（secret）' }, 401);
-  }
+  const auth = checkAdmin(request, new URL(request.url), env);
+  if (!auth.ok) return json({ ok: false, error: auth.error }, auth.status);
 
   if (!env.MESSAGES_KV) {
     return json({ ok: false, error: 'KV 绑定 MESSAGES_KV 未配置' }, 500);

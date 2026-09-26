@@ -18,8 +18,8 @@
 
 - **Webhook 发送**：`POST /api/messages`，支持 JSON、表单、纯文本三种格式，字段名兼容 `message/text/content/body` 与 `name/author/username`
 - **网页展示**：留言卡片、头像配色、相对时间、自动链接化，每 30 秒自动刷新（后台标签页暂停）
-- **安全**：内容 HTML 转义防 XSS、可选密钥校验、每 IP 每分钟 10 条限流、内容长度截断
-- **管理**：带密钥删除留言
+- **管理员**：网页上登录（`ADMIN_PASSWORD`）后可删除单条留言、一键清空、管理多把 webhook 密钥（添加/删除即时生效，可吊销某个调用方）
+- **安全**：内容 HTML 转义防 XSS、可选密钥校验、每 IP 每分钟 10 条限流（登录另有独立限流）、内容长度截断
 - 零依赖：前端原生 JS，后端 Pages Functions 原生接口
 
 ## 快速部署
@@ -65,8 +65,8 @@ npm run deploy
 
 | 变量 | 说明 |
 |------|------|
-| `WEBHOOK_SECRET` | 设置后，发送留言必须携带密钥：`?secret=xxx`、请求头 `X-Webhook-Secret` 或 `Authorization: Bearer xxx` 任一即可 |
-| `ADMIN_SECRET` | 删除留言的管理密钥；未设置时回退使用 `WEBHOOK_SECRET`（都没有则禁用删除） |
+| `ADMIN_PASSWORD` | 管理员密码。设置后网页右上角出现登录入口，登录后可删除留言、清空全部、管理 webhook 密钥。**要启用管理功能必须配置它** |
+| `WEBHOOK_SECRET` | 默认 webhook 密钥（可选，与密钥管理面板中的密钥等效）。配置了任意密钥后，发送留言必须携带：`?secret=xxx`、请求头 `X-Webhook-Secret` 或 `Authorization: Bearer xxx`；一个都没配置则开放发送 |
 
 ## API
 
@@ -105,10 +105,33 @@ curl -X POST https://你的域名.pages.dev/api/messages \
 curl "https://你的域名.pages.dev/api/messages?limit=50"   # 最新在前，limit 最大 200
 ```
 
-### 删除留言
+### 删除留言（管理员）
+
+登录管理员后可在网页上直接删除，也可以用 API。密码通过 `X-Admin-Secret` 头携带：
 
 ```bash
-curl -X DELETE "https://你的域名.pages.dev/api/messages/<id>?secret=你的管理密钥"
+# 删除单条
+curl -X DELETE "https://你的域名.pages.dev/api/messages/<id>" -H "X-Admin-Secret: 管理员密码"
+
+# 清空全部
+curl -X DELETE "https://你的域名.pages.dev/api/messages" -H "X-Admin-Secret: 管理员密码"
+```
+
+### Webhook 密钥管理（管理员）
+
+网页管理面板中可视化操作，等价 API：
+
+```bash
+# 列出密钥
+curl "https://你的域名.pages.dev/api/admin/secrets" -H "X-Admin-Secret: 管理员密码"
+
+# 添加密钥（secret 留空则自动生成 wh_ 开头的随机值）
+curl -X POST "https://你的域名.pages.dev/api/admin/secrets" \
+  -H "Content-Type: application/json" -H "X-Admin-Secret: 管理员密码" \
+  -d '{"name": "CI 机器人"}'
+
+# 删除密钥（立即吊销）
+curl -X DELETE "https://你的域名.pages.dev/api/admin/secrets/<id>" -H "X-Admin-Secret: 管理员密码"
 ```
 
 ## 本地开发
@@ -143,9 +166,13 @@ message-broad/
 │   └── app.js
 ├── functions/               # Pages Functions，按文件路径自动成为 API 路由
 │   └── api/
-│       ├── messages.js      # GET 获取 / POST 发送 /api/messages
-│       └── messages/[id].js # DELETE /api/messages/:id
-├── wrangler.toml            # 本地/CLI 个人配置（已 gitignore，不入库；Git 部署不需要它）
+│       ├── _lib.js          # 共享辅助（管理员验证 / 密钥管理 / 限流），不生成路由
+│       ├── messages.js      # GET 列表 / POST 发送 / DELETE 清空 /api/messages
+│       ├── messages/[id].js # DELETE /api/messages/:id 删除单条
+│       └── admin/
+│           ├── login.js     # POST /api/admin/login 验证管理员密码
+│           └── secrets.js   # GET/POST /api/admin/secrets
+│               └── [id].js  # DELETE /api/admin/secrets/:id
 └── package.json
 ```
 
