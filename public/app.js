@@ -31,7 +31,34 @@
 
   // ---------- 管理员状态 ----------
 
-  let adminPassword = sessionStorage.getItem('adminPassword') || '';
+  // 登录态保存在 localStorage（跨标签页共享），7 天后自动过期
+  const ADMIN_SESSION_KEY = 'adminSession';
+  const ADMIN_SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
+
+  function getSavedAdmin() {
+    try {
+      const raw = localStorage.getItem(ADMIN_SESSION_KEY);
+      if (!raw) return '';
+      const saved = JSON.parse(raw);
+      if (!saved || typeof saved.password !== 'string' || Date.now() > saved.expires) {
+        localStorage.removeItem(ADMIN_SESSION_KEY);
+        return '';
+      }
+      return saved.password;
+    } catch {
+      return '';
+    }
+  }
+
+  function saveAdminSession(password) {
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ password, expires: Date.now() + ADMIN_SESSION_TTL }));
+  }
+
+  function clearAdminSession() {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+  }
+
+  let adminPassword = getSavedAdmin();
   let managedSecrets = [];
   const isAdmin = () => !!adminPassword;
 
@@ -313,7 +340,7 @@
         throw new Error(err.error || `登录失败（HTTP ${res.status}）`);
       }
       adminPassword = password;
-      sessionStorage.setItem('adminPassword', password);
+      saveAdminSession(password);
       closeModal();
       updateAdminUi();
       await loadSecrets();
@@ -329,7 +356,7 @@
   function doLogout() {
     adminPassword = '';
     managedSecrets = [];
-    sessionStorage.removeItem('adminPassword');
+    clearAdminSession();
     updateAdminUi();
   }
 
