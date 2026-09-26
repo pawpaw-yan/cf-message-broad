@@ -40,10 +40,24 @@
 
 ### 方式二：命令行部署
 
+仓库不含 `wrangler.toml`（个人配置，已加入 `.gitignore`）。要用命令行部署，先在本地创建它：
+
+```toml
+name = "cf-message-broad"
+compatibility_date = "2024-09-01"
+pages_build_output_dir = "public"
+
+[[kv_namespaces]]
+binding = "MESSAGES_KV"
+id = "你的_KV_namespace_ID"
+```
+
+然后：
+
 ```bash
 npm install
 npx wrangler login
-npx wrangler kv namespace create MESSAGES_KV   # 把输出的 id 填入 wrangler.toml
+npx wrangler kv namespace create MESSAGES_KV   # 用输出的 id 替换上面占位
 npm run deploy
 ```
 
@@ -99,6 +113,8 @@ curl -X DELETE "https://你的域名.pages.dev/api/messages/<id>?secret=你的�
 
 ## 本地开发
 
+仓库不含 `wrangler.toml`，本地跑之前先按「方式二」的模板创建一份（本地开发会模拟 KV 存储，`id` 随便填也能跑）。然后：
+
 ```bash
 npm install
 npm run dev        # 打开 http://localhost:8788
@@ -129,7 +145,7 @@ message-broad/
 │   └── api/
 │       ├── messages.js      # GET 获取 / POST 发送 /api/messages
 │       └── messages/[id].js # DELETE /api/messages/:id
-├── wrangler.toml            # Pages 配置与 KV 绑定
+├── wrangler.toml            # 本地/CLI 个人配置（已 gitignore，不入库；Git 部署不需要它）
 └── package.json
 ```
 
