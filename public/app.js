@@ -242,8 +242,8 @@
 
       const name = document.createElement('span');
       name.className = 'secret-name';
-      name.textContent = s.name;
-      name.title = s.name;
+      name.textContent = s.name || '未命名密钥';
+      name.title = s.name || '未命名密钥（署名将显示密钥值）';
 
       const value = document.createElement('code');
       value.className = 'secret-value';
@@ -267,7 +267,7 @@
       delBtn.className = 'btn-mini delete';
       delBtn.textContent = '删除';
       delBtn.addEventListener('click', async () => {
-        if (!confirm(`确定删除密钥「${s.name}」吗？使用它的调用方将立即失效。`)) return;
+        if (!confirm(`确定删除密钥「${s.name || '未命名密钥'}」吗？使用它的调用方将立即失效。`)) return;
         const res = await fetch(`/api/admin/secrets/${encodeURIComponent(s.id)}`, {
           method: 'DELETE',
           headers: { 'X-Admin-Secret': adminPassword },

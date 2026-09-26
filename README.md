@@ -90,7 +90,7 @@ curl -X POST https://你的域名.pages.dev/api/messages \
 # 表单
 curl -X POST https://你的域名.pages.dev/api/messages -d "name=CI机器人&message=构建完成 ✅"
 
-# 纯文本（署名默认为 Webhook）
+# 纯文本（text/plain、application/text 或无 Content-Type 均可），请求体即正文
 curl -X POST https://你的域名.pages.dev/api/messages -H "Content-Type: text/plain" -d "来自脚本的一句话"
 
 # 带 source 标记来源（网页上显示为小标签）
@@ -98,6 +98,13 @@ curl -X POST https://你的域名.pages.dev/api/messages \
   -H "Content-Type: application/json" \
   -d '{"message": "部署完成", "source": "GitHub Actions"}'
 ```
+
+**署名规则**（调用方未显式提供 `name` 时自动决定）：
+
+1. 调用方在请求体里提供了 `name` → 使用它
+2. 用的是管理面板里的密钥且填了备注名 → 显示备注名
+3. 密钥没有备注名（或用的是 `WEBHOOK_SECRET`）→ 直接显示密钥值
+4. 服务端未配置任何密钥（开放模式）→ 显示"匿名"
 
 ### 获取留言
 

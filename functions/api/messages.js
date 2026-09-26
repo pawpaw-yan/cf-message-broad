@@ -2,10 +2,13 @@
 // POST   /api/messages  Webhook 发送留言
 // DELETE /api/messages  清空全部留言（管理员）
 //
+// 署名规则：调用方显式提供 name > 密钥备注名 > 密钥值 > 匿名（未配置任何密钥时）
+// 纯文本模式：Content-Type 为 text/plain、application/text 或缺省时，请求体即正文
+//
 // KV key 设计：msg:{倒序时间戳}:{uuid}
 // 倒序时间戳让 KV list 天然按"最新在前"排列。
 
-import { json, CORS_HEADERS, checkAdmin, rateLimited, verifyWebhookSecret } from './_lib.js';
+import { json, CORS_HEADERS, checkAdmin, rateLimited, matchWebhookSecret } from './_lib.js';
 
 const MAX_NAME_LEN = 50;
 const MAX_MESSAGE_LEN = 2000;
@@ -44,8 +47,19 @@ export async function onRequestPost(context) {
   }
 
   const url = new URL(request.url);
-  if (!(await verifyWebhookSecret(request, url, env))) {
+  const match = await matchWebhookSecret(request, url, env);
+  if (!match.ok) {
     return json({ ok: false, error: '无效的密钥（secret）' }, 401);
+  }
+
+  // 署名优先级：调用方显式提供 name > 密钥备注名 > 密钥值 > 匿名（未配置任何密钥时）
+  let fallbackName;
+  if (match.open) {
+    fallbackName = '匿名';
+  } else if (match.managed) {
+    fallbackName = match.managed.name || match.managed.secret;
+  } else {
+    fallbackName = env.WEBHOOK_SECRET;
   }
 
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -78,7 +92,7 @@ export async function onRequestPost(context) {
     };
   }
 
-  const name = String(data?.name ?? '').trim().slice(0, MAX_NAME_LEN) || 'Webhook';
+  const name = String(data?.name ?? '').trim().slice(0, MAX_NAME_LEN) || fallbackName;
   const message = String(data?.message ?? '').trim().slice(0, MAX_MESSAGE_LEN);
 
   if (!message) {

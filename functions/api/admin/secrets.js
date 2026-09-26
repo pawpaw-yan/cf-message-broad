@@ -24,7 +24,8 @@ export async function onRequestPost(context) {
     // 允许空 body，默认自动生成密钥
   }
 
-  const name = String(body?.name ?? '').trim().slice(0, 50) || '未命名密钥';
+  // 备注名允许为空：署名时回退显示密钥值
+  const name = String(body?.name ?? '').trim().slice(0, 50);
   let secret = String(body?.secret ?? '').trim();
   if (!secret) secret = generateSecret();
   if (secret.length < 8) {

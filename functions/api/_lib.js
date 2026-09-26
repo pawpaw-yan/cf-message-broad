@@ -69,12 +69,28 @@ export function generateSecret() {
   return 'wh_' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 校验发送方密钥：WEBHOOK_SECRET 或管理员配置的任一密钥；一个都没配置则开放发送
-export async function verifyWebhookSecret(request, url, env) {
+// 校验发送方密钥并返回匹配详情：
+// - open: true   未配置任何密钥（开放发送模式）
+// - ok: true     密钥有效；managed 为匹配到的管理密钥条目（null 表示匹配的是 WEBHOOK_SECRET）
+// - ok: false    密钥无效或缺失
+export async function matchWebhookSecret(request, url, env) {
   const provided =
     url.searchParams.get('secret') || request.headers.get('X-Webhook-Secret') || bearer(request) || '';
   const managed = await getSecrets(env);
-  const valid = [env.WEBHOOK_SECRET, ...managed.map((s) => s.secret)].filter(Boolean);
-  if (valid.length === 0) return true;
-  return valid.some((s) => timingSafeEqual(provided, s));
+  const hasEnvSecret = !!env.WEBHOOK_SECRET;
+
+  if (!managed.length && !hasEnvSecret) {
+    return { open: true, ok: true, managed: null };
+  }
+  if (provided) {
+    for (const s of managed) {
+      if (timingSafeEqual(provided, s.secret)) {
+        return { open: false, ok: true, managed: s };
+      }
+    }
+    if (hasEnvSecret && timingSafeEqual(provided, env.WEBHOOK_SECRET)) {
+      return { open: false, ok: true, managed: null };
+    }
+  }
+  return { open: false, ok: false, managed: null };
 }

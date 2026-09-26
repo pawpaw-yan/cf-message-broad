@@ -40,10 +40,10 @@
       </div>
       <div class="admin-section">
         <h4>Webhook 密钥</h4>
-        <p class="hint">调用方发送留言时携带密钥（<code>?secret=密钥</code> 或请求头 <code>X-Webhook-Secret</code>）。删除某把密钥即可立即吊销对应调用方；未配置任何密钥时任何人都能发送。</p>
+        <p class="hint">调用方发送留言时携带密钥（<code>?secret=密钥</code> 或请求头 <code>X-Webhook-Secret</code>），留言署名自动使用该密钥的备注名（未填备注名则显示密钥值）。删除某把密钥即可立即吊销对应调用方；未配置任何密钥时任何人都能发送，署名为"匿名"。</p>
         <div id="secrets-list" class="secrets-list"></div>
         <form id="secret-form" class="secret-form">
-          <input id="secret-name" type="text" placeholder="备注名（如：CI 机器人）" maxlength="50" />
+          <input id="secret-name" type="text" placeholder="备注名（作为留言署名，留空显示密钥值）" maxlength="50" />
           <input id="secret-value" type="text" placeholder="密钥值（留空自动生成）" maxlength="128" autocomplete="off" />
           <button type="submit" class="btn-primary">添加密钥</button>
         </form>
