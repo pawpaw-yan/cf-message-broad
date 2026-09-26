@@ -1,0 +1,4 @@
+# 覆盖 Pages 对自定义域名的默认 4 小时缓存策略：
+# 本站没有带 hash 的文件名，部署后需要立即生效，因此统一要求每次验证。
+/*
+  Cache-Control: max-age=0, must-revalidate
