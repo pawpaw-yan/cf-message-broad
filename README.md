@@ -66,6 +66,7 @@ npm run deploy
 | 变量 | 说明 |
 |------|------|
 | `ADMIN_PASSWORD` | 管理员密码。设置后网页右上角出现登录入口，登录后可删除留言、清空全部、管理 webhook 密钥。**要启用管理功能必须配置它**。登录状态在浏览器本机保留 7 天（跨标签页共享）：盾牌按钮只切换管理面板的显示/隐藏，不影响登录态；点面板里的"退出登录"或 7 天到期后才会要求重新输入密码 |
+| `PRIVATE_FLAG` | 私密模式开关。设为 `true`（或 `True`/`1`，大小写不限）后，**查看留言必须先输入管理员密码**：未登录时任何页面地址都只显示解锁界面，留言数据接口 `GET /api/messages` 也强制验证管理员密码，无法绕过。**必须同时配置 `ADMIN_PASSWORD`，否则包括你自己在内所有人都无法查看**。webhook 发送不受影响 |
 | `WEBHOOK_SECRET` | 默认 webhook 密钥（可选，与密钥管理面板中的密钥等效）。配置了任意密钥后，发送留言必须携带：`?secret=xxx`、请求头 `X-Webhook-Secret` 或 `Authorization: Bearer xxx`；一个都没配置则开放发送 |
 
 ## API
@@ -110,6 +111,12 @@ curl -X POST https://你的域名.pages.dev/api/messages \
 
 ```bash
 curl "https://你的域名.pages.dev/api/messages?limit=50"   # 最新在前，limit 最大 200
+```
+
+若开启了 `PRIVATE_FLAG` 私密模式，获取留言需要管理员密码：
+
+```bash
+curl "https://你的域名.pages.dev/api/messages?limit=50" -H "X-Admin-Secret: 管理员密码"
 ```
 
 ### 删除留言（管理员）

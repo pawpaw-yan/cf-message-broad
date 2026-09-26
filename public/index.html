@@ -73,6 +73,19 @@
     </footer>
   </main>
 
+  <!-- 私密模式解锁界面（覆盖全页，未登录时不可见任何内容） -->
+  <div id="gate" class="gate hidden">
+    <div class="gate-box">
+      <div class="gate-icon">🔒</div>
+      <h3>私密留言板</h3>
+      <p class="hint">此留言板已开启私密模式，输入管理员密码后才能查看内容。</p>
+      <input type="password" id="gate-password-input" placeholder="管理员密码（ADMIN_PASSWORD）" autocomplete="current-password" />
+      <p id="gate-error" class="modal-error hidden"></p>
+      <button id="gate-login" class="btn-primary">解锁查看</button>
+      <p class="hint gate-footnote">登录状态在本机保留 7 天</p>
+    </div>
+  </div>
+
   <!-- 管理员登录弹窗 -->
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-box">

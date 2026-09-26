@@ -519,6 +519,75 @@ body {
   color: var(--accent);
 }
 
+/* ---------- 私密模式解锁界面 ---------- */
+.gate {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.gate-box {
+  width: 100%;
+  max-width: 360px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 26px 22px;
+  box-shadow: var(--shadow);
+  text-align: center;
+  animation: slide-in 0.2s ease;
+}
+
+.gate-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.gate-box h3 {
+  margin: 8px 0 0;
+  font-size: 18px;
+}
+
+.gate-box .hint {
+  margin: 8px 0 14px;
+}
+
+.gate-box input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  text-align: left;
+}
+
+.gate-box input:focus {
+  border-color: var(--accent);
+}
+
+.gate-box .btn-primary {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.gate-box .modal-error {
+  text-align: left;
+}
+
+.gate-footnote {
+  margin: 12px 0 0 !important;
+  font-size: 12px;
+}
+
 /* ---------- 登录弹窗 ---------- */
 .modal {
   position: fixed;

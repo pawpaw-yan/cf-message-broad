@@ -26,8 +26,17 @@
   const modalLoginBtn = document.getElementById('modal-login');
   const modalCancelBtn = document.getElementById('modal-cancel');
 
+  // 私密模式解锁界面
+  const gateEl = document.getElementById('gate');
+  const gatePasswordInput = document.getElementById('gate-password-input');
+  const gateError = document.getElementById('gate-error');
+  const gateLoginBtn = document.getElementById('gate-login');
+
   let lastSeenId = null;
   let currentMessages = [];
+
+  // 私密模式（PRIVATE_FLAG=true）：查看留言需要管理员密码，由 /api/config 探测
+  let privateMode = false;
 
   // ---------- 管理员状态 ----------
 
@@ -187,10 +196,41 @@
 
   // ---------- 数据加载 ----------
 
+  async function loadConfig() {
+    try {
+      const res = await fetch('/api/config', { headers: { Accept: 'application/json' } });
+      if (res.ok) {
+        const data = await res.json();
+        privateMode = !!data.private;
+      }
+    } catch {
+      privateMode = false;
+    }
+  }
+
+  function showGate() {
+    gateEl.classList.remove('hidden');
+    gateError.classList.add('hidden');
+    gatePasswordInput.value = '';
+    gatePasswordInput.focus();
+  }
+
+  function hideGate() {
+    gateEl.classList.add('hidden');
+  }
+
   async function loadMessages({ animateFirst = false } = {}) {
+    if (privateMode && !isLoggedIn()) return;
     refreshBtn.classList.add('spinning');
     try {
-      const res = await fetch('/api/messages?limit=100', { headers: { Accept: 'application/json' } });
+      const headers = { Accept: 'application/json' };
+      if (adminPassword) headers['X-Admin-Secret'] = adminPassword;
+      const res = await fetch('/api/messages?limit=100', { headers });
+      if (res.status === 401 && privateMode) {
+        // 登录凭证失效（密码被修改或已过期）：清除本机凭证并回到解锁界面
+        doLogout();
+        return;
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || `加载失败（HTTP ${res.status}）`);
@@ -235,7 +275,7 @@
   }
 
   async function loadSecrets() {
-    if (!isAdmin()) { managedSecrets = []; return; }
+    if (!isLoggedIn()) { managedSecrets = []; return; }
     try {
       const res = await fetch('/api/admin/secrets', {
         headers: { 'X-Admin-Secret': adminPassword },
@@ -328,10 +368,8 @@
     modal.classList.add('hidden');
   }
 
-  async function login() {
-    const password = passwordInput.value;
-    if (!password) return;
-    modalLoginBtn.disabled = true;
+  async function attemptLogin(password, errEl) {
+    errEl.classList.add('hidden');
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
@@ -345,15 +383,38 @@
       adminPassword = password;
       saveAdminSession(password);
       adminMode = true;
+      hideGate();
       closeModal();
       updateAdminUi();
       await loadSecrets();
       loadMessages();
+      return true;
     } catch (err) {
-      modalError.textContent = err.message;
-      modalError.classList.remove('hidden');
+      errEl.textContent = err.message;
+      errEl.classList.remove('hidden');
+      return false;
+    }
+  }
+
+  async function login() {
+    const password = passwordInput.value;
+    if (!password) return;
+    modalLoginBtn.disabled = true;
+    try {
+      await attemptLogin(password, modalError);
     } finally {
       modalLoginBtn.disabled = false;
+    }
+  }
+
+  async function gateLogin() {
+    const password = gatePasswordInput.value;
+    if (!password) return;
+    gateLoginBtn.disabled = true;
+    try {
+      await attemptLogin(password, gateError);
+    } finally {
+      gateLoginBtn.disabled = false;
     }
   }
 
@@ -362,7 +423,13 @@
     adminMode = false;
     managedSecrets = [];
     clearAdminSession();
+    if (privateMode) {
+      // 私密模式下退出即重新上锁
+      currentMessages = [];
+      listEl.innerHTML = '<div class="loading">🔒 内容已锁定</div>';
+    }
     updateAdminUi();
+    if (privateMode) showGate();
   }
 
   // ---------- 事件 ----------
@@ -394,6 +461,12 @@
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
+  });
+
+  // 解锁界面
+  gateLoginBtn.addEventListener('click', gateLogin);
+  gatePasswordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') gateLogin();
   });
 
   // 删除单条留言（事件委托）
@@ -478,8 +551,15 @@
 
   // ---------- 初始化 ----------
 
-  updateCurlExample();
-  updateAdminUi();
-  loadMessages();
-  loadSecrets();
+  (async () => {
+    await loadConfig();
+    updateCurlExample();
+    updateAdminUi();
+    if (privateMode && !isLoggedIn()) {
+      showGate();
+    } else {
+      loadMessages();
+      loadSecrets();
+    }
+  })();
 })();

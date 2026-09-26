@@ -8,7 +8,7 @@
 // KV key 设计：msg:{倒序时间戳}:{uuid}
 // 倒序时间戳让 KV list 天然按"最新在前"排列。
 
-import { json, CORS_HEADERS, checkAdmin, rateLimited, matchWebhookSecret } from './_lib.js';
+import { json, CORS_HEADERS, checkAdmin, isPrivateMode, rateLimited, matchWebhookSecret } from './_lib.js';
 
 const MAX_NAME_LEN = 50;
 const MAX_MESSAGE_LEN = 2000;
@@ -23,11 +23,20 @@ function makeId() {
 
 export async function onRequestGet(context) {
   const { env, request } = context;
+  const url = new URL(request.url);
+
+  // 私密模式：留言内容必须以管理员身份查看（此为数据接口的强制验证，页面无法绕过）
+  if (isPrivateMode(env)) {
+    const auth = checkAdmin(request, url, env);
+    if (!auth.ok) {
+      return json({ ok: false, private: true, error: auth.error }, auth.status);
+    }
+  }
+
   if (!env.MESSAGES_KV) {
     return json({ ok: false, error: 'KV 绑定 MESSAGES_KV 未配置，请在 Cloudflare Pages 设置中绑定' }, 500);
   }
 
-  const url = new URL(request.url);
   const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || DEFAULT_LIMIT, 10) || DEFAULT_LIMIT, 1), MAX_LIMIT);
 
   // KV 一次最多返回 1000 条，足够覆盖 MAX_LIMIT

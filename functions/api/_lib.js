@@ -51,6 +51,14 @@ export async function rateLimited(env, ip, prefix, limit) {
   return false;
 }
 
+// PRIVATE_FLAG=true/1/yes/on（大小写不限）时开启私密模式：查看留言需要管理员密码
+export function isPrivateMode(env) {
+  const v = env && env.PRIVATE_FLAG;
+  if (v === undefined || v === null) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === 'true' || s === '1' || s === 'yes' || s === 'on';
+}
+
 // ---- Webhook 密钥管理（存于 KV cfg:secrets）----
 
 export async function getSecrets(env) {
