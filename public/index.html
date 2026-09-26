@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>留言板</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📮</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <div class="header-title">
+        <h1>📮 留言板</h1>
+        <p class="subtitle">通过 Webhook 把消息发到这里</p>
+      </div>
+      <div class="header-actions">
+        <span id="last-updated" class="last-updated"></span>
+        <button id="refresh-btn" class="btn-refresh" title="刷新留言" aria-label="刷新留言">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+            <polyline points="21 3 21 9 15 9" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section id="status" class="status hidden"></section>
+
+    <section id="message-list" class="message-list" aria-live="polite">
+      <div class="loading">正在加载留言…</div>
+    </section>
+
+    <details class="usage">
+      <summary>如何通过 Webhook 发送留言？</summary>
+      <p>向本站的 <code>/api/messages</code> 发送 POST 请求即可，支持 JSON、表单和纯文本：</p>
+      <pre><code id="curl-example">curl -X POST https://你的域名.pages.dev/api/messages \
+  -H "Content-Type: application/json" \
+  -d '{"name": "小明", "message": "你好，世界！"}'</code></pre>
+      <p>字段兼容 <code>message</code> / <code>text</code> / <code>content</code> / <code>body</code>，署名兼容 <code>name</code> / <code>author</code> / <code>username</code>。</p>
+      <p>若服务端配置了 <code>WEBHOOK_SECRET</code>，请加上 <code>?secret=你的密钥</code> 或请求头 <code>X-Webhook-Secret</code>。</p>
+      <button id="copy-btn" class="btn-copy" data-copy>复制 curl 示例</button>
+    </details>
+
+    <footer class="footer">
+      每 30 秒自动刷新 · Powered by Cloudflare Pages
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

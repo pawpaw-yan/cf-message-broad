@@ -1,0 +1,13 @@
+{
+  "name": "message-broad",
+  "version": "1.0.0",
+  "private": true,
+  "description": "通过 Webhook 发送消息的留言板，部署在 Cloudflare Pages",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "deploy": "wrangler pages deploy public"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
